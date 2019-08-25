@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { withNavigationFocus } from 'react-navigation';
-import { useDispatch, useSelector } from 'react-redux';
-import { TouchableOpacity } from 'react-native';
+import { TouchableOpacity, Alert } from 'react-native';
+import PropTypes from 'prop-types';
 import { format, subDays, addDays } from 'date-fns';
 import pt from 'date-fns/locale/pt';
 import { utcToZonedTime } from 'date-fns-tz';
@@ -24,26 +24,14 @@ import {
 import Background from '~/components/Background';
 import Header from '~/components/Header';
 
-import {
-  loadMeetUpRequest,
-  subscriptionMeetUpRequest,
-} from '~/store/modules/meetup/actions';
-
 import api from '~/services/api';
 
 function Dashboard({ isFocused }) {
-  // const meetups = useSelector(state => state.meetup.meetups);
   const [meetups, setMeetups] = useState([]);
 
   const [date, setDate] = useState(new Date());
   const [page, setPage] = useState(1);
-  // const page = 1;
-
-  // const [newLoad, setNewLoad] = false;
-
   async function loadlMeetups() {
-    // const { page, newLoad } = payload;
-
     const queryDate = format(date, "yyyy'-'MM'-'dd", { locale: pt });
 
     const response = await api.get(`meetups/?date=${queryDate}&page=${page}`);
@@ -69,42 +57,11 @@ function Dashboard({ isFocused }) {
     setPage(page + 1);
     console.tron.log(data);
   }
-  const dispatch = useDispatch();
 
   const ActualDate = useMemo(
     () => format(date, "d 'de' MMMM", { locale: pt }),
     [date]
   );
-
-  // async function loadMeetups() {
-  //   // setNewLoad(true);
-
-  //   if (isFocused) {
-  //     // setPage(1);
-  //     page = 1;
-
-  //     dispatch(
-  //       loadMeetUpRequest(
-  //         format(date, "yyyy'-'MM'-'dd", { locale: pt }),
-  //         page
-  //         // newLoad
-  //       )
-  //     );
-  //   }
-  // setNewLoad(false);
-  // }
-
-  // function refreshLoadMeetups() {
-  //   const nextPage = page + 1;
-
-  //   dispatch(
-  //     loadMeetUpRequest(
-  //       format(date, "yyyy'-'MM'-'dd", { locale: pt }),
-  //       nextPage
-  //     )
-  //   );
-  //   // setPage(page + 1);
-  // }
 
   useEffect(() => {
     loadlMeetups();
@@ -125,8 +82,15 @@ function Dashboard({ isFocused }) {
     }
   }
 
-  function handleInscription(id, past) {
-    if (!past) dispatch(subscriptionMeetUpRequest(id));
+  async function handleInscription(id, past) {
+    try {
+      if (!past) {
+        await api.post(`subscription/${id}`);
+        Alert.alert('Sucesso!', 'Inscrição realizada com sucesso!');
+      }
+    } catch (err) {
+      Alert.alert('Erro!', 'Erro na inscrição!');
+    }
   }
 
   return (

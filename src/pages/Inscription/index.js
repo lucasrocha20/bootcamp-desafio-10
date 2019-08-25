@@ -1,7 +1,12 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Alert } from 'react-native';
 import { withNavigationFocus } from 'react-navigation';
-import { useSelector, useDispatch } from 'react-redux';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { format } from 'date-fns';
+import pt from 'date-fns/locale/pt';
+import { utcToZonedTime } from 'date-fns-tz';
+import 'intl';
+import 'intl/locale-data/jsonp/pt-BR';
 
 import {
   Container,
@@ -16,24 +21,52 @@ import {
 import Background from '~/components/Background';
 import Header from '~/components/Header';
 
-import {
-  loadSubscriptionsMeetUpRequest,
-  cancelInscription,
-} from '~/store/modules/meetup/actions';
+import api from '~/services/api';
 
 function Inscription({ isFocused }) {
-  const dispatch = useDispatch();
-  const incriptions = useSelector(state => state.meetup.subscriptions);
+  const [subscriptions, setSubscriptions] = useState([]);
+
+  async function loadSubscriptions() {
+    try {
+      const response = await api.get('subscription');
+
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+      const data = response.data.map(subscription => {
+        const date = utcToZonedTime(subscription.Meetup.date, timezone);
+
+        const dateFormatted = format(date, "d 'de' MMMM ', às ' H'h'", {
+          locale: pt,
+        });
+
+        return {
+          ...subscription,
+          dateFormatted,
+        };
+      });
+
+      setSubscriptions(data);
+    } catch (err) {
+      Alert.alert('Erro!', 'Erro ao carregar as inscrições!');
+    }
+  }
+
+  async function cancelSubscription(id) {
+    try {
+      await api.delete(`subscription/${id}`);
+      loadSubscriptions();
+
+      Alert.alert('Sucesso!', 'Inscrição cancelada com sucesso!');
+    } catch (err) {
+      Alert.alert('Erro!', 'Não foi possível cancelar essa inscrição!');
+    }
+  }
 
   useEffect(() => {
     if (isFocused) {
-      dispatch(loadSubscriptionsMeetUpRequest());
+      loadSubscriptions();
     }
-  }, [dispatch, isFocused]);
-
-  function handleCancelInscription(id) {
-    dispatch(cancelInscription(id));
-  }
+  }, [isFocused]);
 
   return (
     <Background>
@@ -41,7 +74,7 @@ function Inscription({ isFocused }) {
 
       <Container>
         <ListMeetup
-          data={incriptions}
+          data={subscriptions}
           keyExtractor={item => String(item.id)}
           renderItem={({ item }) => (
             <Content>
@@ -69,7 +102,7 @@ function Inscription({ isFocused }) {
                 </Span>
               </Info>
 
-              <ButtonContent onPress={() => handleCancelInscription(item.id)}>
+              <ButtonContent onPress={() => cancelSubscription(item.id)}>
                 Cancelar Inscrição
               </ButtonContent>
             </Content>
